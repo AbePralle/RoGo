@@ -713,16 +713,16 @@ class CreateBuildfile
          |  endForEach
          |
          |  entries.sort( $1.name < $2.name )
-         |  max_len += 2
+         |  max_len += 4
          |
          |  local max_w = Console.width
          |  forEach (entry in entries)
          |    print "  " + entry.syntax
          |    if (entry.@description)
          |      local description = entry.@description.before_first( '\n' )
-         |      loop (max_len - entry.syntax.count) print ' '
+         |      loop ((max_len - entry.syntax.count) - 2) print ' '
          |      contingent
-         |        sufficient (2 + max_len + description.count <= max_w)
+         |        sufficient (max_len + description.count <= max_w)
          |        if (description.contains(". "))
          |          description = description.before_first( ". " ) + "."
          |          sufficient (max_len + description.count <= max_w)
