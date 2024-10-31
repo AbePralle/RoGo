@@ -254,6 +254,30 @@ class Rogo [singleton]
         local roguec = config//roguec
         if (not File(roguec).exists) roguec = "roguec"  # use system default
         local roguec_args = config//roguec_args->String
+
+        local is_cpp = false
+        block
+          local index = roguec_args.locate( "--target=" )
+          while (index)
+            local setting = roguec_args.substring(index.value).before_first(' ')
+            if (setting.contains("C++") or setting.contains("CPP"))
+              is_cpp = true
+              escapeBlock
+            endIf
+            index = roguec_args.locate( "--target=", index.value+1 )
+          endWhile
+
+          index = roguec_args.locate( "-t " )
+          while (index)
+            local setting = roguec_args.substring(index.value).after_first(' ').before_first(' ')
+            if (setting.contains("C++") or setting.contains("CPP"))
+              is_cpp = true
+              escapeBlock
+            endIf
+            index = roguec_args.locate( "-t ", index.value+1 )
+          endWhile
+        endBlock
+
         local cmd =  "$ --target=C,Console,$" (roguec,System.os)
         if (System.is_macos) cmd += ",ObjC"
         forEach (filepath at index in buildfiles)
@@ -270,6 +294,7 @@ class Rogo [singleton]
 
         if (not config.contains("cc"))
           if (System.is_windows) config//cc = "cl"
+          elseIf (is_cpp)        config//cc = "g++"
           else                   config//cc = "gcc"
         endIf
 
@@ -280,13 +305,18 @@ class Rogo [singleton]
         else                   cmd .= appending( "-Wall -fno-strict-aliasing" )
 
         cmd .= appending( config//cc_args->String )
-        if (System.is_macos) cmd += " $.m"(base_name)
-        else                 cmd += " $.c"(base_name)
+        if (System.is_macos)
+          if (is_cpp) cmd += " $.mm"(base_name)
+          else        cmd += " $.m"(base_name)
+        else
+          if (is_cpp) cmd += " $.cpp"(base_name)
+          else        cmd += " $.c"(base_name)
+        endIf
 
-        forEach (library in config//libraries)
-          install_library( library )
-          if (library//link_libs)
-            cmd .= appending( library_flags(library) )
+        forEach (lib in config//libraries)
+          install_library( lib )
+          if (lib//link_libs)
+            cmd .= appending( library_flags(lib) )
           endIf
         endForEach
 
