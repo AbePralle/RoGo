@@ -409,13 +409,13 @@ class Rogo [singleton]
         endIf
       endIf
 
-    method install_library( library:Variant )
+    method install_library( os_library:Variant )
       # Can skip the install if the library specifies 'exists-cmd:true'.
-      if local exists_cmd = library["exists-cmd"].as_string
+      if local exists_cmd = os_library["exists-cmd"].as_string
         if (exists_cmd == "true") return
       endIf
 
-      local lib = cache//library_flags[ library//name ]
+      local lib = cache//library_flags[ os_library//name ]
       if (lib)
         # Make sure each filepath actually exists
         block lib = lib->String
@@ -444,11 +444,11 @@ class Rogo [singleton]
 
       which (System.os)
         case "macOS"
-          install_macos_library( library )
+          install_macos_library( os_library )
         case "Linux"
-          install_linux_library( library )
+          install_linux_library( os_library )
         case "Windows"
-          install_windows_library( library )
+          install_windows_library( os_library )
         others
           throw Error( ''Rogo does not know how to install a $ library.'' (System.os) )
       endWhich
@@ -479,12 +479,12 @@ class Rogo [singleton]
         return result.output_string.trimmed
       endIf
 
-    method find_macos_library( library:Variant )->Logical
-      local name = library//name->String
+    method find_macos_library( os_library:Variant )->Logical
+      local name = os_library//name->String
       local exists = false
 
       # If an 'exe' name or is specified, that executable must exist.
-      if local exe = library//exe.as_string
+      if local exe = os_library//exe.as_string
         if (not System.find_executable(exe)) return false
         if (not cache//library_flags) cache//library_flags = @{}
         cache//library_flags[name] = ""
@@ -493,20 +493,20 @@ class Rogo [singleton]
       endIf
 
       # If an 'exists-cmd' is given, it must execute without error (specifying 'true' is permitted).
-      if local exists_cmd = library["exists-cmd"].as_string
+      if local exists_cmd = os_library["exists-cmd"].as_string
         if (exists_cmd != "true" and not run(exists_cmd)) return false
         exists = true
       endIf
 
       # Find flags using 'flags', 'info' name, 'info-cmd', 'package' name, or 'name', in that order
-      local flags = library//flags.as_string
+      local flags = os_library//flags.as_string
       if (not flags)
-        flags = fetch_macos_info( library["info"].as_string )
-        if (not flags and library.contains("info-cmd"))
-          flags = run(library["info-cmd"])
-          if (not flags) throw Error( "Error executing library info command: $"(library["info-cmd"]) )
+        flags = fetch_macos_info( os_library["info"].as_string )
+        if (not flags and os_library.contains("info-cmd"))
+          flags = run(os_library["info-cmd"])
+          if (not flags) throw Error( "Error executing library info command: $"(os_library["info-cmd"]) )
         endIf
-        if (not flags) flags = fetch_macos_info( library["package"].as_string )
+        if (not flags) flags = fetch_macos_info( os_library["package"].as_string )
         if (not flags) flags = fetch_macos_info( name )
       endIf
 
@@ -520,12 +520,12 @@ class Rogo [singleton]
 
       if (exists) return true
 
-      if local ignore_exe_only = library["ignore-exe-only"].as_string
+      if local ignore_exe_only = os_library["ignore-exe-only"].as_string
         if (ignore_exe_only == "true") return false
       endIf
 
       # Check for an executable using the package name
-      if local exe = library//package.as_string
+      if local exe = os_library//package.as_string
         if (System.find_executable(exe))
           if (not cache//library_flags) cache//library_flags = @{}
           cache//library_flags[name] = ""
@@ -586,11 +586,11 @@ class Rogo [singleton]
         return null
       endIf
 
-    method install_macos_library( library:Variant )
-      local library_name = library//name->String
+    method install_macos_library( os_library:Variant )
+      local library_name = os_library//name->String
       println "Checking for library $..." (library_name)
 
-      if (find_macos_library(library)) return
+      if (find_macos_library(os_library)) return
 
       # Install library
       require_command_line( library_name )
@@ -600,12 +600,12 @@ class Rogo [singleton]
 
       local install_cmd : String
 
-      if local install_name = library//install.as_string
+      if local install_name = os_library//install.as_string
         if (install_name.contains('/')) install_cmd = "morlock install $"(install_name)
         else                            install_cmd = "brew install $" (install_name)
-      elseIf local cmd = library["install-cmd"].as_string
+      elseIf local cmd = os_library["install-cmd"].as_string
         install_cmd = cmd
-      elseIf local package_name = library//package.as_string
+      elseIf local package_name = os_library//package.as_string
         if (package_name.contains('/')) install_cmd = "morlock install $"(package_name)
         else                            install_cmd = "brew install $" (package_name)
       else
@@ -615,16 +615,16 @@ class Rogo [singleton]
 
       run( install_cmd, &interactive )  # this could succeed in principal but return non-zero with a warning, as with zlib
 
-      if (not find_macos_library(library))
+      if (not find_macos_library(os_library))
         throw Error( "Failed to install library '$'." (library_name) )
       endIf
 
-    method find_windows_library( library:Variant )->Logical
-      local name = library//name->String
+    method find_windows_library( os_library:Variant )->Logical
+      local name = os_library//name->String
       local exists = false
 
       # If an 'exe' name or is specified, that executable must exist.
-      if local exe = library//exe.as_string
+      if local exe = os_library//exe.as_string
         if (not System.find_executable(exe)) return false
         if (not cache//library_flags) cache//library_flags = @{}
         cache//library_flags[name] = ""
@@ -633,20 +633,20 @@ class Rogo [singleton]
       endIf
 
       # If an 'exists-cmd' is given, it must execute without error (specifying 'true' is permitted).
-      if local exists_cmd = library["exists-cmd"].as_string
+      if local exists_cmd = os_library["exists-cmd"].as_string
         if (exists_cmd != "true" and not run(exists_cmd)) return false
         exists = true
       endIf
 
       # Find flags using 'flags', 'info' name, 'info-cmd', 'package' name, or 'name', in that order
-      local flags = library//flags.as_string
+      local flags = os_library//flags.as_string
       if (not flags)
-        flags = fetch_windows_info( library["info"].as_string )
-        if (not flags and library.contains("info-cmd"))
-          flags = run(library["info-cmd"])
-          if (not flags) throw Error( "Error executing library info command: $"(library["info-cmd"]) )
+        flags = fetch_windows_info( os_library["info"].as_string )
+        if (not flags and os_library.contains("info-cmd"))
+          flags = run(os_library["info-cmd"])
+          if (not flags) throw Error( "Error executing library info command: $"(os_library["info-cmd"]) )
         endIf
-        if (not flags) flags = fetch_windows_info( library["package"].as_string )
+        if (not flags) flags = fetch_windows_info( os_library["package"].as_string )
         if (not flags) flags = fetch_windows_info( name )
       endIf
 
@@ -660,12 +660,12 @@ class Rogo [singleton]
 
       if (exists) return true
 
-      if local ignore_exe_only = library["ignore-exe-only"].as_string
+      if local ignore_exe_only = os_library["ignore-exe-only"].as_string
         if (ignore_exe_only == "true") return false
       endIf
 
       # Check for an executable using the package name
-      if local exe = library//package.as_string
+      if local exe = os_library//package.as_string
         if (System.find_executable(exe))
           if (not cache//library_flags) cache//library_flags = @{}
           cache//library_flags[name] = ""
@@ -700,11 +700,11 @@ class Rogo [singleton]
         return null
       endIf
 
-    method install_windows_library( library:Variant )
-      local library_name = library//name->String
+    method install_windows_library( os_library:Variant )
+      local library_name = os_library//name->String
       println "Checking for library $..." (library_name)
 
-      if (find_windows_library(library)) return
+      if (find_windows_library(os_library)) return
 
       # Install library
       require_command_line( library_name )
@@ -714,11 +714,11 @@ class Rogo [singleton]
 
       local install_cmd : String
 
-      if local install_name = library//install.as_string
+      if local install_name = os_library//install.as_string
         install_cmd = "morlock install $"(install_name)
-      elseIf local cmd = library["install-cmd"].as_string
+      elseIf local cmd = os_library["install-cmd"].as_string
         install_cmd = cmd
-      elseIf local package_name = library//package.as_string
+      elseIf local package_name = os_library//package.as_string
         install_cmd = "morlock install $"(package_name)
       else
         install_cmd = "morlock install $"(library_name)
@@ -726,16 +726,16 @@ class Rogo [singleton]
 
       run( install_cmd, &interactive )
 
-      if (not find_windows_library(library))
+      if (not find_windows_library(os_library))
         throw Error( "Failed to install library '$'." (library_name) )
       endIf
 
-    method find_linux_library( library:Variant )->Logical
-      local name = library//name->String
+    method find_linux_library( os_library:Variant )->Logical
+      local name = os_library//name->String
       local exists = false
 
       # If an 'exe' name or is specified, that executable must exist.
-      if local exe = library//exe.as_string
+      if local exe = os_library//exe.as_string
         if (not System.find_executable(exe)) return false
         if (not cache//library_flags) cache//library_flags = @{}
         cache//library_flags[name] = ""
@@ -744,20 +744,20 @@ class Rogo [singleton]
       endIf
 
       # If an 'exists-cmd' is given, it must execute without error (specifying 'true' is permitted).
-      if local exists_cmd = library["exists-cmd"].as_string
+      if local exists_cmd = os_library["exists-cmd"].as_string
         if (exists_cmd != "true" and not run(exists_cmd)) return false
         exists = true
       endIf
 
       # Find flags using 'flags', 'info' name, 'info-cmd', 'package' name, or 'name', in that order
-      local flags = library//flags.as_string
+      local flags = os_library//flags.as_string
       if (not flags)
-        flags = fetch_linux_info( library["info"].as_string )
-        if (not flags and library.contains("info-cmd"))
-          flags = run(library["info-cmd"])
-          if (not flags) throw Error( "Error executing library info command: $"(library["info-cmd"]) )
+        flags = fetch_linux_info( os_library["info"].as_string )
+        if (not flags and os_library.contains("info-cmd"))
+          flags = run(os_library["info-cmd"])
+          if (not flags) throw Error( "Error executing library info command: $"(os_library["info-cmd"]) )
         endIf
-        if (not flags) flags = fetch_linux_info( library["package"].as_string )
+        if (not flags) flags = fetch_linux_info( os_library["package"].as_string )
         if (not flags) flags = fetch_linux_info( name )
       endIf
 
@@ -771,12 +771,12 @@ class Rogo [singleton]
 
       if (exists) return true
 
-      if local ignore_exe_only = library["ignore-exe-only"].as_string
+      if local ignore_exe_only = os_library["ignore-exe-only"].as_string
         if (ignore_exe_only == "true") return false
       endIf
 
       # Check for an executable using the package name
-      if local exe = library//package.as_string
+      if local exe = os_library//package.as_string
         if (System.find_executable(exe))
           if (not cache//library_flags) cache//library_flags = @{}
           cache//library_flags[name] = ""
@@ -824,11 +824,11 @@ class Rogo [singleton]
 
       return null
 
-    method install_linux_library( library:Variant )
-      local library_name = library//name->String
+    method install_linux_library( os_library:Variant )
+      local library_name = os_library//name->String
       println "Checking for library $..." (library_name)
 
-      if (find_linux_library(library)) return
+      if (find_linux_library(os_library)) return
 
       # Install library
       require_command_line( library_name )
@@ -838,11 +838,11 @@ class Rogo [singleton]
 
       local install_cmd : String
 
-      if local install_name = library//install.as_string
+      if local install_name = os_library//install.as_string
         install_cmd = "$ $" (package_manager_install,install_name)
-      elseIf local cmd = library["install-cmd"].as_string
+      elseIf local cmd = os_library["install-cmd"].as_string
         install_cmd = cmd
-      elseIf local package_name = library//package.as_string
+      elseIf local package_name = os_library//package.as_string
         install_cmd = "$ $" (package_manager_install,package_name)
       else
         install_cmd = "$ $" (package_manager_install,library_name)
@@ -850,18 +850,18 @@ class Rogo [singleton]
 
       run( install_cmd, &interactive )  # this could succeed in principal but return non-zero with a warning, as with zlib
 
-      if (not find_linux_library(library))
+      if (not find_linux_library(os_library))
         throw Error( "Failed to install library '$'." (library_name) )
       endIf
 
-    method library_flags( library:Variant )->String
-      if (not cache//library_flags.contains(library//name))
-        install_library( library )
+    method library_flags( os_library:Variant )->String
+      if (not cache//library_flags.contains(os_library//name))
+        install_library( os_library )
       endIf
 
-      if (library.contains("link") and library//link->String.equals("false",&ignore_case)) return ""
+      if (os_library.contains("link") and os_library//link->String.equals("false",&ignore_case)) return ""
 
-      return cache//library_flags[library//name].as_string
+      return cache//library_flags[os_library//name].as_string
 
     method update_spacer( min_spacer:Int32?, line:String )->Int32?
       local spacer : Int32
