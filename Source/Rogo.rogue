@@ -156,6 +156,7 @@ class Rogo [singleton]
       configure_os
 
       local needs_recompile = buildfiles.any_newer_than( exe )
+      local starting_config = config.cloned
 
       block
         # Process DEPENDENCIES
@@ -216,6 +217,8 @@ class Rogo [singleton]
 
       if (needs_recompile)
         println "Recompiling $..." (File(buildfiles.first).filename)
+
+        config = starting_config  # otherwise we'll have two copies of libraries etc.
 
         # Collect info for config
         collect_directives( File(forEach in buildfiles) )
